@@ -53,14 +53,11 @@ architecture Behavioral of comm is
 constant WRITE_WR_LENGTH : integer := 3; -- Clock cycles
 constant READ_RD_LENGTH : integer := 3; -- Clock cycles
 
-signal write_start : std_logic := '0';
-signal write_done : std_logic := '1';
 signal reading : std_logic := '0';
 
 signal ft2232_data_write : STD_LOGIC_VECTOR(7 downto 0) := (others => '1');
 
 signal data_out_int : STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
-signal data_out_valid_int : std_logic := '0';
 
 signal rxf_sync, txe_sync : std_logic := '1';
 
@@ -78,154 +75,111 @@ if rising_edge(clk) then
 end if;
 end process;
 
-write_process : process(clk, rst, data_out_ack, txe_sync)
-
-type ftfifo_state_type is (S_START, S_WR, S_HOLD, S_DONE);
-variable write_state : ftfifo_state_type := S_START;
+process(clk, rst, data_out_ack, txe_sync, rxf_sync)
+type ft_state_type is (S_START, S_TX_WR, S_TX_HOLD, S_RX_RD, S_RX_READ, S_RX_SEND, S_RX_WAIT);
+variable state : ft_state_type := S_START;
 variable pulse_count : unsigned(4 downto 0) := to_unsigned(0, 5);
 begin
 
 if rst = '1' then
     ft2232_data_write <= (others => '1');
-    write_state := S_START;
+    state := S_START;
     pulse_count := to_unsigned(0, 5);
-    write_done <= '1';
     wr <= '1';
     data_in_ack <= '0';
 elsif rising_edge(clk) then
+    -- Default values
     wr <= '1';
-    data_in_ack <= '0';
-    ft2232_data_write <= (others => '1');
+    rd <= '1';
     
-    case write_state is 
+    data_in_ack <= '0';
+    
+    ft2232_data_write <= (others => '1');
+
+    if (state = S_TX_WR or state = S_TX_HOLD) then
+        reading <= '0';
+    else
+        reading <= '1';
+    end if;
+    
+    case state is
     
         when S_START =>
-            write_done <= '1';
-            if write_start = '1' then
-                write_done <= '0';
-                write_state := S_WR;
+            -- Priorize reading
+            if rxf_sync = '0' then
+                state := S_RX_RD;
+                rd <= '0';
+                pulse_count := to_unsigned(READ_RD_LENGTH, 5);
+            elsif data_in_valid = '1' and txe_sync = '0' then
+                state := S_TX_WR;
                 wr <= '1';
                 ft2232_data_write <= data_in;
                 pulse_count := to_unsigned(WRITE_WR_LENGTH, 5);
             end if;
     
-        when S_WR =>
+        when S_TX_WR =>
             -- Holds WR signal high
             ft2232_data_write <= data_in;
             if pulse_count = to_unsigned(0, 5) then
-                write_state := S_HOLD;
+                state := S_TX_HOLD;
                 wr <= '0'; -- Strobe WR to signal a write
             else
                 pulse_count := pulse_count - 1;
             end if;
             
-        when S_HOLD =>
+        when S_TX_HOLD =>
             -- Wait for TXE to rise
             wr <= '0';
             ft2232_data_write <= data_in;
             if txe_sync = '1' then
                 data_in_ack <= '1';
-                write_state := S_DONE;
+                state := S_START;
             end if;
             
-        when S_DONE =>
-            write_done <= '1';
-            write_state := S_START;
-        
-        when others =>
-            write_state := S_START;
-    
-    end case;
-
-end if;
-
-end process;
-
-read_process : process(clk, ft2232_data, rst, data_out_ack, rxf_sync, txe_sync)
-
-type ftfifo_state_type is (S_START, S_RD, S_READ, S_SEND, S_WAIT);
-variable read_state : ftfifo_state_type := S_START;
-variable pulse_count : unsigned(4 downto 0) := to_unsigned(0, 5);
-begin
-
-if rst = '1' then
-    read_state := S_START;
-    pulse_count := to_unsigned(0, 5);
-    reading <= '0';
-    data_out_valid <= '0';
-    rd <= '1';
-elsif rising_edge(clk) then
-    data_out_valid <= '0';
-    rd <= '1';
-    -- Data out buffer
-    data_out <= data_out_int;
-    data_out_valid <= data_out_valid_int;
-    reading <= '1';
-
-    case read_state is 
-    
-        when S_START =>
-            reading <= '0';
-            if rxf_sync = '0' and write_done = '1' then
-                read_state := S_RD;
-                rd <= '0';  -- Strobe RD signal to read
-                reading <= '1';
-                pulse_count := to_unsigned(READ_RD_LENGTH, 5);
-            end if;
-    
-        when S_RD =>
+        when S_RX_RD =>
             -- Holds RD signal low
             rd <= '0';
             if pulse_count = to_unsigned(0, 5) then
-                read_state := S_READ;
+                state := S_RX_READ;
             else
                 pulse_count := pulse_count - 1;
             end if;
             
-        when S_READ =>
+        when S_RX_READ =>
             -- Read the data
             rd <= '1';
             data_out_int <= ft2232_data;
-            data_out_valid_int <= '1';
-            read_state := S_SEND;
+            data_out_valid <= '1';
+            state := S_RX_SEND;
         
-        when S_SEND =>
+        when S_RX_SEND =>
             rd <= '1';
-            data_out_valid_int <= '1';
+            data_out_valid <= '1';
             if data_out_ack = '1' then
-                data_out_valid_int <= '0';
                 data_out_valid <= '0';
-                read_state := S_WAIT;
+                state := S_RX_WAIT;
                 pulse_count := to_unsigned(READ_RD_LENGTH, 5);
             end if;
             
+        when S_RX_WAIT =>
+            if rxf_sync = '1'  or pulse_count = to_unsigned(0, 5) then
+                state := S_START;
+            else
+                pulse_count := pulse_count - 1;
+            end if;
+        
         when others =>
-            read_state := S_START;
-    
+           state := S_START;
+        
     end case;
-
 end if;
 
 end process;
 
-write_read : process(clk, rst, txe_sync, data_in_valid)
-begin
-
-if rst = '1' then
-    write_start <= '0';
-elsif rising_edge(clk) then
-    if write_done = '0' then
-        write_start <= '0';
-    end if;
-    if reading = '0' and data_in_valid = '1' and txe_sync = '0' then
-        write_start <= '1';
-    end if;
-end if;
-
-end process;
-
+data_out <= data_out_int;
+    
 si_wu <= '1';
 
-ft2232_data <= (others => 'Z') when write_done = '1' else ft2232_data_write;
+ft2232_data <= (others => 'Z') when reading = '1' else ft2232_data_write;
 
 end Behavioral;
