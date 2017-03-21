@@ -1,0 +1,24 @@
+Resistive bridge coupler design files.
+
+
+PCB Stackup: OSH park 4 layer process.
+
+
+BOM: 
+ 3, http://www.mouser.fi/ProductDetail/Linx-Technologies/CONSMA003062/?qs=sGAEpiMZZMsgSGrx0WqTbDECK3OTA0n%2f
+ 1, http://www.mouser.fi/ProductDetail/EPCOS-TDK/B64290P0687X046/?qs=sGAEpiMZZMs2JV%252bnT%2fvX8Df1W1GtRs01w38yswv%252b9W0%3d
+ 2, http://www.mouser.fi/ProductDetail/Fair-Rite/5943000911/?qs=sGAEpiMZZMsuct6UGZJC7QQ6ZlEn2BkEKxrVH5WSvu8%3d
+ 3, http://www.mouser.fi/ProductDetail/Fair-Rite/5977000101/?qs=sGAEpiMZZMs2JV%252bnT%2fvX8PSq2BULPkJLFoDtc8BHtvw%3d
+
+
+Resistors (See coupler_layout.png for positions):
+ R1: 270
+ R2: 50
+ R3, R5: 36
+ R4, R6: 39
+
+Mount the resistors upside down to minimize parasitics.
+
+
+Coaxial cable:
+ RG405
