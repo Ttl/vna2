@@ -25,6 +25,8 @@ class MAX2871():
         self.registers = [0]*8
         self.modified = [False]*8
 
+        self.written_regs = [None]*8
+
         #Check unique names
         keys = []
         for key in self.register_def.itervalues():
@@ -42,12 +44,14 @@ class MAX2871():
         self.write_value(reserved2=3)
         self.write_value(pdp=1) #Positive phase-detector polarity
         self.write_value(cpl=2) #Charge pump linearity 20%
-        self.write_value(cp=12) #Charge pump current. Icp = (1.63/Rset)*(1+cp)
+        self.write_value(cp=10) #Charge pump current. Icp = (1.63/Rset)*(1+cp)
         self.write_value(ld=1) #Digital lock detect pin function
+        self.write_value(mutedel=1)
         self.write_value(ldf=0) #Fractional-N lock detect
         self.write_value(r=1) #Reference divide by 1
         self.write_value(p=1) #Phase, recommended 1
-        self.write_value(sdn=2) #Low-spur mode 1
+        self.write_value(sdn=0) #Low-noise mode
+        self.write_value(reg4db=1) #Double buffer reg4
         self.write_value(apwr=apwr)
         self.write_value(rfa_en=rfa_en)
 
@@ -163,8 +167,8 @@ class MAX2871():
             (24,3865820020.0,3922520021.0),
             (25,3922520021.0,3981682709.0),
             (26,3981682709.0,4043154280.0),
-            (27,4043154280.0,4100400020.0),
-            (28,4100400020.0,4159647583.0),
+            (27,4043154280.0,4090400020.0),
+            (28,4000400020.0,4159647583.0),
             (29,4159647583.0,4228164842.0),
             (30,4228164842.0,4299359879.0),
             (31,4299359879.0,4395947962.0),
@@ -189,8 +193,8 @@ class MAX2871():
             (52,5500079705.0,5555329630.0),
             (53,5555329630.0,5615049833.0),
             (54,5615049833.0,5676098527.0),
-            (55,5676098527.0,5744191577.0),
-            (56,5744191577.0,5810869917.0),
+            (55,5676098527.0,5724191577.0),
+            (56,5724191577.0,5810869917.0),
             (57,5810869917.0,5879176194.0),
             (58,5879176194.0,5952430629.0),
             (59,5952430629.0,6016743964.0),

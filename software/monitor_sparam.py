@@ -23,7 +23,7 @@ def init_vna():
     vna.set_tx_mux('iq', sample_input='adc')
     #vna.set_tx_mux('samples', sample_input='adc')
 
-    vna.write_sample_time(int(40e6/300+100))
+    vna.write_sample_time(int(40e6/1000+100))
     #vna.write_sample_time(110000)
     vna.write_io(pwdn=0, mixer_enable=0, led=1, adc_oe=0, adc_shdn=0)
     vna.write_pll_io(lo_ce=1, source_ce=1, lo_rf=1, source_rf=1)

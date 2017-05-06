@@ -41,48 +41,64 @@ def iq_to_sparam(iqs, freqs, ports, sw_correction=True):
 
     return skrf.Network(s=sparams, f=freqs, f_unit='Hz')
 
+def sw_terms(iqs, freqs):
+    """Switch terms from IQ"""
+    sparams = []
+
+    for f in xrange(len(freqs)):
+        sw_f = iqs[f][('rx2',1)]/iqs[f][('b',1)]
+        sw_r = iqs[f][('rx1',2)]/iqs[f][('a',2)]
+        sparams.append( [[sw_f, 0], [0, sw_r]] )
+
+    return skrf.Network(s=sparams, f=freqs, f_unit='Hz')
+
 
 ref_freq = 40e6
 
 vna = VNA()
 
 ports = [1, 2]
+sw_correction = True
 
-freqs = np.linspace(30e6, 6e9, 200)
+freqs = np.linspace(30e6, 6e9, 801)
 
 vna.set_tx_mux('iq', sample_input='adc')
-vna.write_att(8.0)
-vna.write_sample_time(int(40e6/200+100))
+vna.write_att(7.0)
+vna.write_sample_time(int(40e6/1000+100))
 vna.write_io(pwdn=0, mixer_enable=0, led=1, adc_oe=0, adc_shdn=0)
 vna.write_pll_io(lo_ce=1, source_ce=1, lo_rf=1, source_rf=1)
 iqs = [{} for i in xrange(len(freqs))]
+
+time.sleep(0.5)
 
 first = True
 for port in ports:
     tag = 1
     for e,freq in enumerate(freqs):
+        if freq > 4.5e9:
+            vna.write_att(0)
         vna.write_switches(tx_filter=freq, port=port, rx_sw='rx1')
         source_freq = freq
         lo_freq = source_freq - 2e6
-        lo_f = vna.lo.freq_to_regs(lo_freq, ref_freq, apwr=0)
+        lo_f = vna.lo.freq_to_regs(lo_freq, ref_freq, apwr=1)
+        vna.write_pll(vna.lo)
         source_f = vna.source.freq_to_regs(source_freq, ref_freq, apwr=0)
         vna.write_pll(vna.source)
-        vna.write_pll(vna.lo)
         if first:
             time.sleep(20e-3)
-            vna.write_pll(vna.source)
             vna.write_pll(vna.lo)
+            vna.write_pll(vna.source)
             first = False
+            for i in xrange(4):
+                iq, sw, t = vna.read_iq()
+        time.sleep(1e-3)
         vna.write_tag(tag)
         i = 0
         while True:
             iq, sw, t = vna.read_iq()
-            #print t,tag
             if t != tag:
                 continue
             i += 1
-            #if sw == 'rx1' and 20*np.log10(np.abs(iq)) < -70:
-            #    raise Exception()
             iqs[e].setdefault((sw,port), iq)
 
             print freq, sw, 20*np.log10(np.abs(iq))
@@ -90,43 +106,14 @@ for port in ports:
                 break
         tag = (tag + 1) % 256
 
-#s = []
-#for f in range(len(freqs)):
-#    s.append( [[iqs['a'][f]/iqs['rx1'][f]]] )
-
 plt.figure()
-net = iq_to_sparam(iqs, freqs, ports, sw_correction=False)
-#net = skrf.Network(f=freqs, f_unit='Hz', s=np.array(s))
+net = iq_to_sparam(iqs, freqs, ports, sw_correction=sw_correction)
 net.plot_s_db()
-#plt.figure()
-#net.plot_s_deg()
 net.write_touchstone('response.s{}p'.format(net.nports))
 
+if not sw_correction and len(ports) == 2:
+    sw = sw_terms(iqs, freqs)
+    sw.write_touchstone('sw_terms.s2p')
+
 pickle.dump( (freqs, iqs), open( "iqs.p", "wb" ) )
-
-#plt.figure()
-#plt.title('S11')
-#plt.plot(20*np.log10(np.abs(s)))
-#plt.grid(True)
-#plt.xlabel('Frequency [Hz]')
-#plt.ylabel('S11 [dB]')
-
-#plt.figure()
-#for k in iqs.keys():
-#    if len(iqs[k]) > 0:
-#        print len(iqs[k])
-#        plt.plot(freqs, 180/np.pi*(np.angle(iqs[k])), label=k)
-#plt.figure()
-#for k in iqs.keys():
-#    print k, 20*np.log10(np.abs(iqs[k]))
-#    if len(iqs[k]) > 0:
-#        plt.plot(freqs, 20*np.log10(np.abs(iqs[k])), label=k)
-#plt.legend(loc='best')
-#plt.xlabel('Frequency [Hz]')
-#plt.ylabel('Power [dBFs]')
-#plt.ylim([-140, 0])
-#plt.grid(True)
-#plt.figure()
-#plt.plot(180/np.pi*np.angle(iqs))
 plt.show()
-

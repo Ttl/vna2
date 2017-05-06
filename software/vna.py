@@ -13,6 +13,8 @@ class VNA():
         self.device.open()
         self.lo = MAX2871()
         self.source = MAX2871()
+        self.current_switches = None
+        self.current_att = None
 
     def array_to_int(self, a, reverse=False):
         if reverse:
@@ -111,6 +113,8 @@ class VNA():
         return i+1j*q, rx_sw, tag
 
     def write_att(self, att):
+        if self.current_att == att:
+            return 0
         def reverse_bits(x, n=8):
             result = 0
             for i in xrange(n):
@@ -124,6 +128,7 @@ class VNA():
         w = reverse_bits(int(round(att/0.25)))
         assert 0 <= w <= 255
         assert w & 0x01 == 0x00
+        self.current_att = att
         return self.to_device(6, [w])
 
     def write_switches(self, tx_filter, port, rx_sw, rx_sw_force=False):
@@ -170,7 +175,10 @@ class VNA():
         b2 = rx_sw & 0x3f
         if rx_sw_force:
             b2 |= (1 << 6)
-        return self.to_device(1, [b1,b2])
+        if [b1,b2] != self.current_switches:
+            self.current_switches = [b1,b2]
+            return self.to_device(1, [b1,b2])
+        return 0
 
     def write_io(self, pwdn, mixer_enable, led, adc_oe, adc_shdn):
         #pwdn: Amplifier enabled when low
@@ -183,7 +191,10 @@ class VNA():
     def write_pll(self, pll):
         for i in xrange(5,-1, -1):
             reg = pll.registers[i] | i
+            if i != 0 and pll.written_regs[i] == reg:
+                continue
             self.write_pll_reg(pll, reg)
+            pll.written_regs[i] = reg
 
     def write_sample_time(self, samples):
         b1 = (samples & 0x000000ff) >> 0

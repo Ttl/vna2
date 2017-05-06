@@ -13,7 +13,7 @@ def init_vna():
 
     vna = VNA()
 
-    source_freq = 6.0e9
+    source_freq = 30e6
     lo_freq = source_freq - 2e6
 
     vna.set_tx_mux('iq', sample_input='adc')
@@ -24,11 +24,11 @@ def init_vna():
     #vna.dither_en(1)
     #vna.set_tx_mux('samples', sample_input='adc')
 
-    vna.write_sample_time(int(40e6/1000+100))
+    vna.write_sample_time(int(40e6/100+100))
     #vna.write_sample_time(110000)
     vna.write_io(pwdn=0, mixer_enable=0, led=1, adc_oe=0, adc_shdn=0)
     vna.write_pll_io(lo_ce=1, source_ce=1, lo_rf=1, source_rf=1)
-    vna.write_att(0.0)
+    vna.write_att(8.0)
     vna.write_switches(tx_filter=source_freq, port=2, rx_sw='rx2', rx_sw_force=False)
     vna.write_pll(vna.source)
     vna.write_pll(vna.lo)
