@@ -44,7 +44,9 @@ entity tx_mux is
            iq_data_ack : out STD_LOGIC;
            io_data : in STD_LOGIC_VECTOR(7 downto 0);
            io_data_valid : in STD_LOGIC;
-           io_data_ack : out STD_LOGIC);
+           io_data_ack : out STD_LOGIC;
+           last_byte_iq : in STD_LOGIC;
+           last_byte : out STD_LOGIC);
 end tx_mux;
 
 architecture Behavioral of tx_mux is
@@ -58,6 +60,8 @@ data_out <= iq_data when mux = "00" else
 data_valid <= iq_data_valid when mux = "00" else
               samples_data_valid when mux = "01" else
               io_data_valid;
+              
+last_byte <= last_byte_iq when mux = "00" else '0';
               
 iq_data_ack <= data_ack when mux = "00" else '0';
 samples_data_ack <= data_ack when mux = "01" else '0';

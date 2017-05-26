@@ -45,7 +45,8 @@ entity iq_packer is
            data_ack : in STD_LOGIC;
            rx_sw : in rx_sw_type;
            iq_tag_in : in STD_LOGIC_VECTOR(7 downto 0);
-           iq_tag_valid : in STD_LOGIC);
+           iq_tag_valid : in STD_LOGIC;
+           last_byte : out STD_LOGIC);
 end iq_packer;
 
 architecture Behavioral of iq_packer is
@@ -71,6 +72,7 @@ variable sent : unsigned(7 downto 0) := to_unsigned(0, 8);
 begin
 if rising_edge(clk) then
 
+    last_byte <= '0';
     if iq_tag_valid = '1' then
         packet_memory(3+3*IQ_BYTES+1) <= iq_tag_in;
     end if;
@@ -106,6 +108,9 @@ if rising_edge(clk) then
         queue_full <= '1';
         data_valid <= '1';
         
+        if sent = to_unsigned(packet_size-1, 8) then
+            last_byte <= '1';
+        end if;
         if sent = to_unsigned(packet_size-1, 8) and data_ack = '1' then
             queue_full <= '0';
             sent := to_unsigned(0, 8);

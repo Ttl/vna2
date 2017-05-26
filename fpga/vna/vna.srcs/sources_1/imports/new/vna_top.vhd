@@ -120,6 +120,8 @@ signal io_data_valid, io_data_ack : std_logic;
 signal iq_tag : std_logic_vector(7 downto 0);
 signal iq_tag_valid : std_logic;
 
+signal last_byte_iq, last_byte : std_logic;
+
 begin
 
 receiver : entity work.receiver
@@ -160,9 +162,10 @@ comm : entity work.comm
           txe => txe,
           rd => rd,
           wr => wr,
-          si_wu => si_wu);
+          si_wu => si_wu,
+          last_byte => last_byte);
           
-led <= source_ld;
+led <= lo_ld;
           
 iq_packer : entity work.iq_packer
     Port map ( clk => clk,
@@ -177,7 +180,8 @@ iq_packer : entity work.iq_packer
          data_ack => iq_data_ack,
          rx_sw => rx_sw_select,
          iq_tag_in => iq_tag,
-         iq_tag_valid => iq_tag_valid);
+         iq_tag_valid => iq_tag_valid,
+         last_byte => last_byte_iq);
 
 sample_packer : entity work.sample_packer
     Port map (clk => clk,
@@ -204,7 +208,9 @@ tx_mux : entity work.tx_mux
         iq_data_ack => iq_data_ack,
         io_data => io_data_out,
         io_data_valid => io_data_valid,
-        io_data_ack => io_data_ack);
+        io_data_ack => io_data_ack,
+        last_byte_iq => last_byte_iq,
+        last_byte => last_byte);
          
 io_bank : entity work.io_bank
    Port map ( clk => clk,

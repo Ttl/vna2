@@ -24,7 +24,7 @@ constant SKIP_SAMPLES : integer := 30;
 
 constant AGC_TARGET : integer := 200;
 
-constant LOCK_CYCLES : integer := 8000;
+constant LOCK_CYCLES : integer := 12000;
 
 end vna_pkg;
 

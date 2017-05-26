@@ -45,13 +45,16 @@ entity comm is
            txe : in STD_LOGIC;
            rd : out STD_LOGIC;
            wr : out STD_LOGIC;
-           si_wu : out STD_LOGIC);
+           si_wu : out STD_LOGIC;
+           last_byte : in STD_LOGIC);
 end comm;
 
 architecture Behavioral of comm is
 
-constant WRITE_WR_LENGTH : integer := 3; -- Clock cycles
-constant READ_RD_LENGTH : integer := 3; -- Clock cycles
+constant WRITE_WR_LENGTH : integer := 4; -- Clock cycles
+constant READ_RD_LENGTH : integer := 4; -- Clock cycles
+constant SI_WU_DELAY : integer := 2; -- Clock cycles
+constant SI_WU_LENGTH : integer := 4; -- Clock cycles
 
 signal reading : std_logic := '0';
 
@@ -60,6 +63,12 @@ signal ft2232_data_write : STD_LOGIC_VECTOR(7 downto 0) := (others => '1');
 signal data_out_int : STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 
 signal rxf_sync, txe_sync : std_logic := '1';
+
+signal last_byte_int : std_logic := '0';
+signal si_wu_out : std_logic := '1';
+
+signal si_wu_pipe : std_logic_vector(SI_WU_DELAY - 1 downto 0) := (others => '1');
+signal si_wu_lengthen : std_logic_vector(SI_WU_LENGTH - 1 downto 0) := (others => '1');
 
 begin
 
@@ -91,6 +100,7 @@ elsif rising_edge(clk) then
     -- Default values
     wr <= '1';
     rd <= '1';
+    si_wu_out <= '1';
     
     data_in_ack <= '0';
     
@@ -114,6 +124,7 @@ elsif rising_edge(clk) then
                 state := S_TX_WR;
                 wr <= '1';
                 ft2232_data_write <= data_in;
+                last_byte_int <= last_byte;
                 pulse_count := to_unsigned(WRITE_WR_LENGTH, 5);
             end if;
     
@@ -123,6 +134,7 @@ elsif rising_edge(clk) then
             if pulse_count = to_unsigned(0, 5) then
                 state := S_TX_HOLD;
                 wr <= '0'; -- Strobe WR to signal a write
+                pulse_count := to_unsigned(WRITE_WR_LENGTH, 5);
             else
                 pulse_count := pulse_count - 1;
             end if;
@@ -134,6 +146,7 @@ elsif rising_edge(clk) then
             if txe_sync = '1' then
                 data_in_ack <= '1';
                 state := S_START;
+                si_wu_out <= not last_byte_int;
             end if;
             
         when S_RX_RD =>
@@ -176,9 +189,32 @@ end if;
 
 end process;
 
+si_wu_process : process(clk, si_wu_out)
+
+variable si_wu_and : std_logic := '1';
+begin
+
+if rising_edge(clk) then
+
+si_wu_pipe(0) <= si_wu_out;
+si_wu_lengthen(0) <= si_wu_pipe(SI_WU_DELAY - 1);
+for i in 1 to SI_WU_DELAY-1 loop
+    si_wu_pipe(i) <= si_wu_pipe(i-1);
+end loop;
+
+si_wu_and := si_wu_lengthen(0);
+for i in 1 to SI_WU_LENGTH-1 loop
+    si_wu_lengthen(i) <= si_wu_lengthen(i-1);
+    si_wu_and := si_wu_and and si_wu_lengthen(i);
+end loop;
+
+end if;
+
+si_wu <= si_wu_and;
+
+end process;
+
 data_out <= data_out_int;
-    
-si_wu <= '1';
 
 ft2232_data <= (others => 'Z') when reading = '1' else ft2232_data_write;
 

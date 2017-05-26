@@ -141,9 +141,7 @@ elsif rising_edge(clk) then
         data_out <= write_word;
         data_out_valid <= '1';
         writing <= '1';
-    end if;
-    
-    if writing = '1' then
+    elsif writing = '1' then
         data_out_valid <= '1';
         if data_out_ack = '1' then
             writing <= '0';
