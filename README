@@ -4,7 +4,6 @@ First version: https://github.com/Ttl/vna
 
 For more information see: http://hforsten.com/improved-homemade-vna.html
 
-
-FPGA can be programmed with the Papilio-prog tool: https://github.com/GadgetFactory/Papilio-Loader. A patch in "fpga/vna2.patch" needs to be applied for the tool to be able to program Artix-7.
+FPGA can be programmed with Openocd (http://openocd.org/). Scripts for programming the FPGA and SPI flash are in the "openocd" folder. Copy the bit file to openocd folder and use the command "openocd -f <script.cfg>" to program the board.
 
 Before communication is possible with the board through USB, FT2232D EEPROM needs to be programmed. Port B needs to be changed in FIFO 245 mode. This can be done using FTDIs "ft-prog" tool.
