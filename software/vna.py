@@ -1,4 +1,4 @@
-from __future__ import division
+
 import pylibftdi as ftdi
 from max2871 import MAX2871
 import time
@@ -15,6 +15,10 @@ class VNA():
         self.source = MAX2871()
         self.current_switches = None
         self.current_att = None
+
+        self.source_harmonic = 5
+        self.lo_harmonic = 3
+        self.max_nonharmonic_freq = 6.3e9
 
     def array_to_int(self, a, reverse=False):
         if reverse:
@@ -53,7 +57,7 @@ class VNA():
             if len(s) == 1:
                 bytes_in.append(ord(s))
 
-        print bytes_in[:10]
+        print((bytes_in[:10]))
         samples = []
         for i in range(len(bytes_in)//2):
             samples.append(twos_comp((bytes_in[2*i]<<8)+bytes_in[2*i+1], 16))
@@ -95,7 +99,7 @@ class VNA():
             if ord(r) != 0x01:
                 continue
             break
-        iq = map(ord, self.device.read(23))
+        iq = list(map(ord, self.device.read(23)))
 
         i = iq[0:7]
         q = iq[7:14]
@@ -117,7 +121,7 @@ class VNA():
             return 0
         def reverse_bits(x, n=8):
             result = 0
-            for i in xrange(n):
+            for i in range(n):
                 if (x >> i) & 1:
                     result |= 1 << (n - 1 - i)
             return result
@@ -189,7 +193,7 @@ class VNA():
         return self.to_device(11, [tag])
 
     def write_pll(self, pll):
-        for i in xrange(5,-1, -1):
+        for i in range(5,-1, -1):
             reg = pll.registers[i] | i
             if i != 0 and pll.written_regs[i] == reg:
                 continue
@@ -274,3 +278,19 @@ class VNA():
             raise Exception()
         #time.sleep(1e-3)
         return wrote
+
+    def program_sources(self, source_freq, if_freq=2e6):
+        source_harm = 1
+        lo_harm = 1
+        if source_freq > self.max_nonharmonic_freq:
+            source_harm = self.source_harmonic
+            lo_harm = self.lo_harmonic
+        source_freq /= source_harm
+        lo_freq = (source_freq * source_harm + if_freq) / lo_harm
+        lo_apwr = 1
+        source_apwr = 0 if source_harm == 1 else 2
+        lo_f = self.lo.freq_to_regs(lo_freq, ref_freq, apwr=lo_apwr)
+        self.write_pll(self.lo)
+        source_f = self.source.freq_to_regs(source_freq, ref_freq, apwr=source_apwr)
+        self.write_pll(self.source)
+        return lo_f, source_f

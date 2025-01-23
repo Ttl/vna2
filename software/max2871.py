@@ -1,4 +1,4 @@
-from __future__ import division
+
 from fractions import Fraction
 
 class MAX2871():
@@ -29,7 +29,7 @@ class MAX2871():
 
         #Check unique names
         keys = []
-        for key in self.register_def.itervalues():
+        for key in self.register_def.values():
             for r in key:
                 if r in keys:
                     raise Exception("Duplicate register {}".format(r))
@@ -43,8 +43,8 @@ class MAX2871():
         #Reg4:reserved2 must be 3
         self.write_value(reserved2=3)
         self.write_value(pdp=1) #Positive phase-detector polarity
-        self.write_value(cpl=2) #Charge pump linearity 20%
-        self.write_value(cp=10) #Charge pump current. Icp = (1.63/Rset)*(1+cp)
+        self.write_value(cpl=1) #Charge pump linearity 10%
+        self.write_value(cp=11) #Charge pump current. Icp = (1.63/Rset)*(1+cp)
         self.write_value(ld=1) #Digital lock detect pin function
         self.write_value(mutedel=1)
         self.write_value(ldf=0) #Fractional-N lock detect
@@ -55,7 +55,8 @@ class MAX2871():
         self.write_value(apwr=apwr)
         self.write_value(rfa_en=rfa_en)
 
-        #self.write_value(dbr=1) #R doubler
+        #self.write_value(dbr=1) #Enable reference doubler
+        #fpd *= 2
 
         if fpd < 32e6:
             self.write_value(lds=0)
@@ -91,7 +92,7 @@ class MAX2871():
             div = 128
 
         fvco = fout*div
-        for i in xrange(2):
+        for i in range(2):
             d = 1 if fb else min(div, 16)
             n = int((fvco/fpd)/d)
             if 19 <= n <= 4091:
@@ -135,7 +136,7 @@ class MAX2871():
         #print ((n+f/m)*fpd*d)/div,
         #print 'f {} m {} n {} d {} div {} fb {}'.format(f,m,n,d,div,fb)
         #print 'fvco {} fout {}'.format(fvco, fvco/div)
-        assert 3e9 <= fvco <= 6.25e9
+        #assert 3e9 <= fvco <= 6.25e9
         assert f < m
         assert 19 <= n <= 4091
         #fvco = d*fpd*(n+f/m)
@@ -204,13 +205,16 @@ class MAX2871():
 
         ]
 
-        for vco in xrange(len(vcos)):
+        for vco in range(len(vcos)):
             if vcos[vco][1] < fvco <= vcos[vco][2]:
                 #print vcos[vco][0], fvco
                 self.write_value(vco=vcos[vco][0])
                 break
         else:
-            raise Exception('No suitable VCO found. fvco = {}'.format(fvco))
+            if fvco > 6e9:
+                self.write_value(vco=vcos[-1][0])
+            else:
+                raise Exception('No suitable VCO found. fvco = {}'.format(fvco))
 
         self.write_value(vas_shdn=1)
 
@@ -218,14 +222,14 @@ class MAX2871():
 
     def find_reg(self, reg):
         """Finds register by name"""
-        for key, val in self.register_def.iteritems():
-            if reg in val.keys():
+        for key, val in self.register_def.items():
+            if reg in list(val.keys()):
                 return key, val[reg]
         return None, None
 
     def write_value(self, **kw):
         """Write value to register, doesn't update the device"""
-        for reg, val in kw.iteritems():
+        for reg, val in kw.items():
             #print "{} = {}".format(reg, val)
             reg_n, reg_def = self.find_reg(reg)
             if reg_n == None:

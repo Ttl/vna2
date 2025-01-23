@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division
+
 from vna import VNA
 import matplotlib.pyplot as plt
 import numpy as np
@@ -62,7 +62,7 @@ plot.setYRange(-100, 0, padding=0)
 
 def update():
     global iqs, vna, curve1, curve2, plot
-    for i in xrange(4):
+    for i in range(4):
         iq,sw,tag = vna.read_iq()
         iqs[sw].append(iq)
     rx1 = iqs['rx1'][-plot_points:]

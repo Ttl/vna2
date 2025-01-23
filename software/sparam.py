@@ -1,4 +1,4 @@
-from __future__ import division
+
 from vna import VNA
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,14 +10,14 @@ def iq_to_sparam(iqs, freqs, ports, sw_correction=True):
     sparams = []
 
     if len(ports) == 1:
-        for f in xrange(len(freqs)):
+        for f in range(len(freqs)):
             if ports[0] == 1:
                 s = iqs[f][('a',1)]/iqs[f][('rx1',1)]
             else:
                 s = iqs[f][('b',2)]/iqs[f][('rx2',2)]
             sparams.append(s)
     elif len(ports) == 2:
-        for f in xrange(len(freqs)):
+        for f in range(len(freqs)):
             s11 = []
             s12 = []
             s21 = []
@@ -45,7 +45,7 @@ def sw_terms(iqs, freqs):
     """Switch terms from IQ"""
     sparams = []
 
-    for f in xrange(len(freqs)):
+    for f in range(len(freqs)):
         sw_f = iqs[f][('rx2',1)]/iqs[f][('b',1)]
         sw_r = iqs[f][('rx1',2)]/iqs[f][('a',2)]
         sparams.append( [[sw_f, 0], [0, sw_r]] )
@@ -53,21 +53,19 @@ def sw_terms(iqs, freqs):
     return skrf.Network(s=sparams, f=freqs, f_unit='Hz')
 
 
-ref_freq = 40e6
-
 vna = VNA()
 
 ports = [1, 2]
 sw_correction = True
 
-freqs = np.linspace(30e6, 6e9, 801)
+freqs = np.linspace(30e6, 8.5e9, 801)
 
 vna.set_tx_mux('iq', sample_input='adc')
 vna.write_att(7.0)
 vna.write_sample_time(int(40e6/1000+100))
 vna.write_io(pwdn=0, mixer_enable=0, led=1, adc_oe=0, adc_shdn=0)
 vna.write_pll_io(lo_ce=1, source_ce=1, lo_rf=1, source_rf=1)
-iqs = [{} for i in xrange(len(freqs))]
+iqs = [{} for i in range(len(freqs))]
 
 time.sleep(0.5)
 
@@ -78,18 +76,13 @@ for port in ports:
         if freq > 4.5e9:
             vna.write_att(0)
         vna.write_switches(tx_filter=freq, port=port, rx_sw='rx1')
-        source_freq = freq
-        lo_freq = source_freq - 2e6
-        lo_f = vna.lo.freq_to_regs(lo_freq, ref_freq, apwr=1)
-        vna.write_pll(vna.lo)
-        source_f = vna.source.freq_to_regs(source_freq, ref_freq, apwr=0)
-        vna.write_pll(vna.source)
+        vna.program_sources(freq, 2e6)
         if first:
             time.sleep(20e-3)
             vna.write_pll(vna.lo)
             vna.write_pll(vna.source)
             first = False
-            for i in xrange(4):
+            for i in range(4):
                 iq, sw, t = vna.read_iq()
         time.sleep(1e-3)
         vna.write_tag(tag)
@@ -101,7 +94,7 @@ for port in ports:
             i += 1
             iqs[e].setdefault((sw,port), iq)
 
-            print freq, sw, 20*np.log10(np.abs(iq))
+            print(freq, sw, 20*np.log10(np.abs(iq)))
             if i == 4:
                 break
         tag = (tag + 1) % 256
@@ -116,4 +109,5 @@ if not sw_correction and len(ports) == 2:
     sw.write_touchstone('sw_terms.s2p')
 
 pickle.dump( (freqs, iqs), open( "iqs.p", "wb" ) )
+plt.ylim([-100, 0])
 plt.show()

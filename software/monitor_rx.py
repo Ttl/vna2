@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division
+
 from vna import VNA
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,7 +13,7 @@ def init_vna():
 
     vna = VNA()
 
-    source_freq = 30e6
+    source_freq = 5e9
     lo_freq = source_freq - 2e6
 
     vna.set_tx_mux('iq', sample_input='adc')
@@ -29,7 +29,7 @@ def init_vna():
     vna.write_io(pwdn=0, mixer_enable=0, led=1, adc_oe=0, adc_shdn=0)
     vna.write_pll_io(lo_ce=1, source_ce=1, lo_rf=1, source_rf=1)
     vna.write_att(8.0)
-    vna.write_switches(tx_filter=source_freq, port=2, rx_sw='rx2', rx_sw_force=False)
+    vna.write_switches(tx_filter=source_freq, port=1, rx_sw='rx1', rx_sw_force=False)
     vna.write_pll(vna.source)
     vna.write_pll(vna.lo)
     vna.write_pll(vna.source)
@@ -67,9 +67,10 @@ plot.setYRange(-100, 0, padding=0)
 
 def update():
     global iqs, vna, curve1, curve2, plot
-    for i in xrange(4):
+    for i in range(4):
         iq,sw,tag = vna.read_iq()
         iqs[sw].append(20*np.log10(np.abs(iq)))
+        #iqs[sw].append(np.angle(iq))
     rx1 = iqs['rx1'][-plot_points:]
     rx1 = [-100]*(plot_points-len(rx1)) + rx1
     a = iqs['a'][-plot_points:]
